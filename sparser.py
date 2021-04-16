@@ -3,7 +3,7 @@ from sly import Parser
 
 class BasicLexer(Lexer):
     tokens = { NAME, NUMBER, STRING, BOOLEAN,
-                ANDALSO, NOT}
+                ANDALSO, NOT, PRINT}
     ignore = '\t '
     literals = { '=', '+', '-', '/', 
                 '*', '(', ')', ',', ';'}
@@ -34,6 +34,8 @@ class BasicLexer(Lexer):
     def COMMENT(self, t):
         pass
   
+    NAME['print'] = PRINT
+
     @_(r'\n+')
     def newline(self, t):
         self.lineno = t.value.count('\n')
@@ -51,6 +53,10 @@ class BasicParser(Parser):
     @_('')
     def statement(self, p):
         pass
+    
+    @_('PRINT "(" statement ")"')
+    def statement(self, p):
+        return ('print', p.statement)
   
     @_('var_assign')
     def statement(self, p):
@@ -138,8 +144,8 @@ class BasicExecute:
     def __init__(self, tree, env):
         self.env = env
         result = self.walkTree(tree)
-        if result is not None:
-            print(result)
+        # if result is not None:
+        #     print(result)
   
     def walkTree(self, node):
   
@@ -157,7 +163,7 @@ class BasicExecute:
             else:
                 self.walkTree(node[1])
                 self.walkTree(node[2])
-  
+        
         if node[0] == 'num':
             return node[1]
         if node[0] == 'str':
@@ -177,7 +183,10 @@ class BasicExecute:
         if node[0] == 'var_assign':
             self.env[node[1]] = self.walkTree(node[2])
             return node[1]
-  
+        if node[0] == 'print':
+            print(self.walkTree(node[1]))
+            return
+
         if node[0] == 'var':
             try:
                 return self.env[node[1]]
