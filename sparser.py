@@ -2,10 +2,14 @@ from sly import Lexer
 from sly import Parser
 
 class BasicLexer(Lexer):
-    tokens = { NAME, NUMBER, STRING, BOOLEAN }
+    tokens = { NAME, NUMBER, STRING, BOOLEAN,
+                ANDALSO, NOT}
     ignore = '\t '
     literals = { '=', '+', '-', '/', 
                 '*', '(', ')', ',', ';'}
+
+    ANDALSO = r'andalso'
+    NOT     = r'not'
 
     @_(r'(True|False)')
     def BOOLEAN(self, t):
@@ -59,7 +63,10 @@ class BasicParser(Parser):
     @_('NAME "=" str')
     def var_assign(self, p):
         return ('var_assign', p.NAME, p.str)
-  
+    
+    @_('NAME "=" bool')
+    def var_assign(self, p):
+        return ('var_assign', p.NAME, p.bool)
 
     @_('expr')
     def statement(self, p):
@@ -69,9 +76,13 @@ class BasicParser(Parser):
     def statement(self, p):
         return (p.str)
     
-    @_('name')
+    @_('bool')
     def statement(self, p):
-        return (p.name)
+        return (p.bool)
+    
+    # @_('name')
+    # def statement(self, p):
+    #     return (p.name)
 
     @_('expr "+" expr')
     def expr(self, p):
@@ -88,14 +99,26 @@ class BasicParser(Parser):
     @_('str "+" str')
     def str(self, p):
         return ('add', p.str0, p.str1)
-  
+    
+    @_('bool ANDALSO bool')
+    def bool(self, p):
+        return ('andalso', p.bool0, p.bool1)
+    
+    @_('NOT bool')
+    def bool(self, p):
+        return ('not', p.bool)
+
     @_('NAME')
-    def name(self, p):
+    def expr(self, p):
         return ('var', p.NAME)
   
     @_('NUMBER')
     def expr(self, p):
         return ('num', p.NUMBER)
+
+    @_('NAME')
+    def str(self, p):
+        return ('var', p.NAME)
     
     @_('STRING')
     def str(self, p):
@@ -104,6 +127,10 @@ class BasicParser(Parser):
     @_('BOOLEAN')
     def bool(self, p):
         return ('str', p.BOOLEAN)
+    
+    @_('NAME')
+    def bool(self, p):
+        return ('var', p.NAME)
 
 
 class BasicExecute:
@@ -133,14 +160,19 @@ class BasicExecute:
   
         if node[0] == 'num':
             return node[1]
-  
         if node[0] == 'str':
+            return node[1]
+        if node[0] == 'bool':
             return node[1]
   
         if node[0] == 'add':
             return self.walkTree(node[1]) + self.walkTree(node[2])
         elif node[0] == 'sub':
             return self.walkTree(node[1]) - self.walkTree(node[2])
+        elif node[0] == 'not':
+            return not(self.walkTree(node[1]))
+        elif node[0] == 'andalso':
+            return self.walkTree(node[1]) and self.walkTree(node[2])
   
         if node[0] == 'var_assign':
             self.env[node[1]] = self.walkTree(node[2])
