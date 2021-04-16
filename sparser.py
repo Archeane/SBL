@@ -6,7 +6,7 @@ class BasicLexer(Lexer):
                 ANDALSO, NOT, PRINT}
     ignore = '\t '
     literals = { '=', '+', '-', '/', 
-                '*', '(', ')', ',', ';'}
+                '*', '(', ')', ',', ';', '[', ']'}
 
     ANDALSO = r'andalso'
     NOT     = r'not'
@@ -18,6 +18,11 @@ class BasicLexer(Lexer):
         else:
             t.value = True
         return t
+    
+    # @_(r'\[[^\]]*\]')
+    # def ARRAY(self, t):
+    #     t.value = eval(str(t.value))
+    #     return t
 
     NAME = r'[a-zA-Z_][a-zA-Z0-9_]*'
     @_(r"['\"](.*?)['\"]")
@@ -52,7 +57,7 @@ class BasicParser(Parser):
   
     @_('')
     def statement(self, p):
-        pass
+        pass  
     
     @_('PRINT "(" statement ")"')
     def statement(self, p):
@@ -74,6 +79,12 @@ class BasicParser(Parser):
     def var_assign(self, p):
         return ('var_assign', p.NAME, p.bool)
 
+    @_('NAME "=" array')
+    def var_assign(self, p):
+        return ('var_assign', p.NAME, p.array)
+
+# =================================
+
     @_('expr')
     def statement(self, p):
         return (p.expr)
@@ -85,6 +96,10 @@ class BasicParser(Parser):
     @_('bool')
     def statement(self, p):
         return (p.bool)
+
+    @_('array')
+    def statement(self, p):
+        return (p.array)
     
     # @_('name')
     # def statement(self, p):
@@ -114,6 +129,16 @@ class BasicParser(Parser):
     def bool(self, p):
         return ('not', p.bool)
 
+    @_('array "+" array')
+    def array(self, p):
+        return ('add', p.array0, p.array1)
+    
+    @_('array "[" expr "]"')
+    def array(self, p):
+        return ('index', p.array, p.expr)
+
+# =======================
+
     @_('NAME')
     def expr(self, p):
         return ('var', p.NAME)
@@ -137,6 +162,27 @@ class BasicParser(Parser):
     @_('NAME')
     def bool(self, p):
         return ('var', p.NAME)
+
+    # @_('ARRAY')
+    # def array(self, p):
+    #     return ('arr', p.ARRAY)
+
+    @_('"[" elements "]"')
+    def array(self, p):
+        return ('arr', p.elements)
+
+    @_('statement')
+    def elements(self, p):
+        return [p.statement]
+
+    @_('statement "," elements')
+    def elements(self, p):
+        return [p.statement] + p.elements
+    
+    
+    @_('NAME')
+    def array(self, p):
+        return ('var', p.array)
 
 
 class BasicExecute:
@@ -170,6 +216,11 @@ class BasicExecute:
             return node[1]
         if node[0] == 'bool':
             return node[1]
+        if node[0] == 'arr':
+            temp = []
+            for e in node[1]:
+                temp.append(self.walkTree(e))
+            return temp
   
         if node[0] == 'add':
             return self.walkTree(node[1]) + self.walkTree(node[2])
@@ -186,6 +237,10 @@ class BasicExecute:
         if node[0] == 'print':
             print(self.walkTree(node[1]))
             return
+        if node[0] == 'index':
+            array = self.walkTree(node[1])
+            index = self.walkTree(node[2])
+            return array[index]
 
         if node[0] == 'var':
             try:
@@ -206,4 +261,5 @@ if __name__ == '__main__':
             break
         if text:
             tree = parser.parse(lexer.tokenize(text))
+            # print(tree)
             BasicExecute(tree, env)
