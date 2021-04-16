@@ -27,7 +27,23 @@ class SblParser(Parser):
     @_('PRINT "(" statement ")"')
     def statement(self, p):
         print(p.statement)
-        return
+
+    @_('statement')
+    def block(self, p):
+        self.stack.append(p.statement)
+
+    @_('statement ";" statements')
+    def block(self, p):
+        self.stack.append(p.statement)
+    
+    @_('"{" block "}"')
+    def statements(self, p):
+        return p.block
+
+    @_("NAME ASSIGN statement")
+    def statement(self, p):
+        self.names[p.NAME] = p.statement
+
 
     # @_('LBRAC expr RBRAC')
     # def list(self, p):
@@ -74,9 +90,9 @@ class SblParser(Parser):
     def expr(self, p):
         return p.expr
 
-    @_('ID ASSIGN expr')
-    def statement(self, p):
-        self.names[p.ID] = p.expr
+    # @_('ID ASSIGN expr')
+    # def statement(self, p):
+    #     self.names[p.ID] = p.expr
 
     @_('expr PLUS expr')
     def expr(self, p):
@@ -286,19 +302,13 @@ class SblParser(Parser):
     def elements(self, p):
         return p.LIST
 
-
-    @_('statements')
-    def block(self, p):
-        return p.elements
-
-    @_('statement ";" statements')
-    def statements(self, p):
-        self.stack.append(p.statement)
-        return p.statements
-    
-    @_('"{" BLOCK "}"')
-    def statements(self, p):
-        return p.BLOCk
+    @_('NAME')
+    def statement(self, p):
+        try:
+            return self.names[p.NAME]
+        except LookupError:
+            print(f'Undefined name {p.NAME!r}')
+            return None
 
     def error(self, p):
         print("Syntax error at token %s" % str(p))

@@ -4,7 +4,7 @@ class SblLexer(Lexer):
     # Set of token names.   This is always required
     tokens = { NUMBER, BOOLEAN, STRING, LIST, TUPLE,
                 IN, CON, TUPLEINDEX,
-               ID, WHILE, IF, ELSE, PRINT, LISTINDEX,
+               NAME, WHILE, IF, ELSE, PRINT, LISTINDEX,
                PLUS, MINUS, TIMES, DIVIDE, EXPONENTIAL, ASSIGN,
                DIV, MODULUS, ANDALSO, ORELSE, NOT,
                EQ, LT, LE, GT, GE, NE,
@@ -86,14 +86,13 @@ class SblLexer(Lexer):
     def STRING(self, t):
         t.value = str(eval(t.value))
         return t
-
         
     # Identifiers and keywords
-    ID = r'[a-zA-Z_][a-zA-Z0-9_]*'
-    ID['if'] = IF
-    ID['else'] = ELSE
-    ID['while'] = WHILE
-    ID['print'] = PRINT
+    NAME = r'[a-zA-Z_][a-zA-Z0-9_]*'
+    NAME['if'] = IF
+    NAME['else'] = ELSE
+    NAME['while'] = WHILE
+    NAME['print'] = PRINT
 
     ignore_comment = r'\#.*'
 
@@ -109,7 +108,9 @@ class SblLexer(Lexer):
 if __name__ == '__main__':
     data = '''
 {
-
+    a = 1 + 1;
+    b = a + 1;
+    print(b)
 }
 '''
     lexer = SblLexer()
