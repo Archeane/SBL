@@ -3,7 +3,7 @@ from sly import Parser
 
 class BasicLexer(Lexer):
     tokens = { NAME, NUMBER, STRING, BOOLEAN,
-                ANDALSO, NOT, PRINT}
+                ANDALSO, NOT, PRINT, ARRAY}
     ignore = '\t '
     literals = { '=', '+', '-', '/', 
                 '*', '(', ')', ',', ';', '[', ']'}
@@ -105,38 +105,6 @@ class BasicParser(Parser):
     # def statement(self, p):
     #     return (p.name)
 
-    @_('expr "+" expr')
-    def expr(self, p):
-        return ('add', p.expr0, p.expr1)
-  
-    @_('expr "-" expr')
-    def expr(self, p):
-        return ('sub', p.expr0, p.expr1)
-  
-    @_('"-" expr %prec UMINUS')
-    def expr(self, p):
-        return p.expr
-
-    @_('str "+" str')
-    def str(self, p):
-        return ('add', p.str0, p.str1)
-    
-    @_('bool ANDALSO bool')
-    def bool(self, p):
-        return ('andalso', p.bool0, p.bool1)
-    
-    @_('NOT bool')
-    def bool(self, p):
-        return ('not', p.bool)
-
-    @_('array "+" array')
-    def array(self, p):
-        return ('add', p.array0, p.array1)
-    
-    @_('array "[" expr "]"')
-    def array(self, p):
-        return ('index', p.array, p.expr)
-
 # =======================
 
     @_('NAME')
@@ -182,7 +150,52 @@ class BasicParser(Parser):
     
     @_('NAME')
     def array(self, p):
-        return ('var', p.array)
+        return ('var', p.NAME)
+
+
+    @_('statement "+" statement')
+    def statement(self, p):
+        return p.statement0 + p.statement1
+
+    @_('expr "+" expr')
+    def expr(self, p):
+        return ('add', p.expr0, p.expr1)
+  
+    @_('expr "-" expr')
+    def expr(self, p):
+        return ('sub', p.expr0, p.expr1)
+  
+    @_('"-" expr %prec UMINUS')
+    def expr(self, p):
+        return p.expr
+
+    @_('str "+" str')
+    def str(self, p):
+        return ('add', p.str0, p.str1)
+    
+    @_('bool ANDALSO bool')
+    def bool(self, p):
+        return ('andalso', p.bool0, p.bool1)
+    
+    @_('NOT bool')
+    def bool(self, p):
+        return ('not', p.bool)
+
+    @_('array "+" array')
+    def array(self, p):
+        return ('add', p.array0, p.array1)
+
+    @_('array "+" expr')
+    def array(self, p):
+        return ('add', p.array, p.expr)
+
+    @_('array "+" str')
+    def array(self, p):
+        return ('add', p.array, p.str)
+    
+    @_('array "[" expr "]"')
+    def array(self, p):
+        return ('index', p.array, p.expr)
 
 
 class BasicExecute:
