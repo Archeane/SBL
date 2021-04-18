@@ -1,10 +1,8 @@
 from sly import Lexer
 from sly import Parser
+import sys
 
 class SemanticError(Exception):
-    pass
-
-class Expr:
     pass
 
 class Node:
@@ -80,7 +78,7 @@ class IndexNode(Node):
             raise SemanticError('SEMANTIC ERROR')
         return self.listVal.evaluate()[self.index.evaluate()]
 
-class BinOp(Expr):
+class BinOp(Node):
     def __init__(self, op, left, right):
         self.op = op
         self.left = left
@@ -117,6 +115,36 @@ class BinOp(Expr):
                 return val1 - val2
             else:
                 raise SemanticError()
+        elif (self.op == '*'):
+            val1 = self.left.evaluate()
+            val2 = self.right.evaluate()
+            if isinstance(val1, int) and isinstance(val2, int):
+                return val1 * val2
+            elif isinstance(val1, float) and isinstance(val2, int):
+                return val1 * val2
+            elif isinstance(val1, int) and isinstance(val2, float):
+                return val1 * val2
+            elif isinstance(val1, float) and isinstance(val2, float):
+                return val1 * val2
+            else:
+                raise SemanticError()
+        elif (self.op == '/'):
+            val1 = self.left.evaluate()
+            val2 = self.right.evaluate()
+            if isinstance(val2, int) or isinstance(val2, int) and val2 == 0:
+                raise SemanticError("division by zero")
+            if isinstance(val1, int) and isinstance(val2, int):
+                return val1 / val2
+            elif isinstance(val1, float) and isinstance(val2, int):
+                return val1 / val2
+            elif isinstance(val1, int) and isinstance(val2, float):
+                return val1 / val2
+            elif isinstance(val1, float) and isinstance(val2, float):
+                return val1 / val2
+            else:
+                raise SemanticError()
+        elif (self.op == 'div'):
+            return self.left.evaluate() // self.right.evaluate()
         elif (self.op == 'mod'):
             return self.left.evaluate() % self.right.evaluate()
         elif (self.op == '<'):
@@ -164,6 +192,66 @@ class BinOp(Expr):
                 return val1 == val2
             else:
                 raise SemanticError('SEMANTIC ERROR')
+
+        elif (self.op == '<='):
+            val1 = self.left.evaluate()
+            val2 = self.right.evaluate()
+            if isinstance(val1, str) and isinstance(val2, str):
+                return val1 <= val2
+            elif isinstance(val1, int) and isinstance(val2, int):
+                return val1 <= val2
+            elif isinstance(val1, float) and isinstance(val2, int):
+                return val1 <= val2
+            elif isinstance(val1, int) and isinstance(val2, float):
+                return val1 <= val2
+            elif isinstance(val1, float) and isinstance(val2, float):
+                return val1 <= val2
+            else:
+                raise SemanticError('SEMANTIC ERROR')
+        elif (self.op == '>='):
+            val1 = self.left.evaluate()
+            val2 = self.right.evaluate()
+            if isinstance(val1, str) and isinstance(val2, str):
+                return val1 >= val2
+            elif isinstance(val1, int) and isinstance(val2, int):
+                return val1 >= val2
+            elif isinstance(val1, float) and isinstance(val2, int):
+                return val1 >= val2
+            elif isinstance(val1, int) and isinstance(val2, float):
+                return val1 >= val2
+            elif isinstance(val1, float) and isinstance(val2, float):
+                return val1 >= val2
+            else:
+                raise SemanticError('SEMANTIC ERROR')
+            
+        elif (self.op == '<>'):
+            val1 = self.left.evaluate()
+            val2 = self.right.evaluate()
+            if isinstance(val1, str) and isinstance(val2, str):
+                return val1 != val2
+            elif isinstance(val1, int) and isinstance(val2, int):
+                return val1 != val2
+            elif isinstance(val1, float) and isinstance(val2, int):
+                return val1 != val2
+            elif isinstance(val1, int) and isinstance(val2, float):
+                return val1 != val2
+            elif isinstance(val1, float) and isinstance(val2, float):
+                return val1 != val2
+            else:
+                raise SemanticError('SEMANTIC ERROR')
+        elif (self.op == '**'):
+            val1 = self.left.evaluate()
+            val2 = self.right.evaluate()
+            if isinstance(val1, int) and isinstance(val2, int):
+                return val1 ** val2
+            elif isinstance(val1, float) and isinstance(val2, int):
+                return val1 ** val2
+            elif isinstance(val1, int) and isinstance(val2, float):
+                return val1 ** val2
+            elif isinstance(val1, float) and isinstance(val2, float):
+                return val1 ** val2
+            else:
+                raise SemanticError('SEMANTIC ERROR')
         elif (self.op == 'andalso'):
             val1 = self.left.evaluate()
             val2 = self.right.evaluate()
@@ -171,6 +259,73 @@ class BinOp(Expr):
                 return val1 and val2
             else:
                 raise SemanticError('SEMANTIC ERROR')
+        elif (self.op == 'orelse'):
+            val1 = self.left.evaluate()
+            val2 = self.right.evaluate()
+            if isinstance(val1, bool) and isinstance(val2, bool):
+                return val1 or val2
+            else:
+                raise SemanticError('SEMANTIC ERROR')
+        elif self.op == 'in':
+            val1 = self.left.evaluate()
+            val2 = self.right.evaluate()
+            if isinstance(val2, list) or (isinstance(val2, str) and isinstance(val1, str)):
+                return val1 in val2
+            else:
+                raise SemanticError('SEMANTIC ERROR')
+        elif self.op == '::':
+            val1 = self.left.evaluate()
+            val2 = self.right.evaluate()
+            if isinstance(val2, list):
+                return [val1] + self.right.evaluate()
+            else:
+                raise SemanticError('SEMANTIC ERROR')
+
+class OneOp(Node):
+    def __init__(self, op, v):
+        self.op = op
+        self.v = v
+
+    def evaluate(self):
+        if self.op == 'not':
+            if not isinstance(self.v.evaluate(), bool):
+                raise SemanticError("SEMANTIC ERROR")
+            return not self.v.evaluate()
+        elif self.op == '-':
+            if not isinstance(self.v.evaluate(), (float, int)):
+                raise SemanticError("SEMANTIC ERROR")
+            return self.v.evaluate() * -1
+
+class CSLNode(Node):
+    def __init__(self, v1, v2):
+        self.left = v1
+        self.right = v2
+    def appendElem(self, elem):
+        self.v.append(elem)
+    def evaluate(self):
+        if isinstance(self.left, CSLNode):
+            return self.left.evaluate() + [self.right.evaluate()]
+        else:
+            return [self.left.evaluate(), self.right.evaluate()]
+
+class TupleNode(Node):
+    def __init__(self, l):
+        self.v = l
+    def evaluate(self):
+        return tuple(self.v.evaluate())
+
+class IndexTupleNode(Node):
+    def __init__(self, tup, ind):
+        self.tup = tup
+        self.index = ind
+    def evaluate(self):
+        if not((isinstance(self.tup, TupleNode) or isinstance(self.tup, VariableNode) or isinstance(self.tup, IndexNode))
+         and isinstance(self.index.evaluate(), int)):
+            raise SemanticError('SEMANTIC ERROR')
+        if isinstance(self.index.evaluate(), int):
+            if self.index.evaluate() >= len(self.tup.evaluate()):
+                raise SemanticError('SEMANTIC ERROR')
+            return self.tup.evaluate()[self.index.evaluate() - 1]
 
 class PrintNode(Node):
     def __init__(self, v):
@@ -222,10 +377,7 @@ variables = {}
 class VariableIndexNode(Node):
     def __init__(self, var, index):
         self.var = var
-        # print(f"var in variableIndexNode: {var.evaluate()}")
-        # print(f"index in variableIndexNode: {index.evaluate()}")
         self.index = index
-        # self.value = value
     def evaluate(self):
         if not (isinstance(self.var, VariableNode) or isinstance(self.var, VariableIndexNode)):
             print(type(self.var))
@@ -233,15 +385,10 @@ class VariableIndexNode(Node):
         if not (isinstance(self.var.evaluate(), list) or isinstance(self.var.evaluate(), str)):
             raise SemanticError('SEMANTIC ERROR')
         if not isinstance(self.index.evaluate(), int):
-        # if not isinstance(self.index, int):
             raise SemanticError('SEMANTIC ERROR')
         if self.index.evaluate() >= len(self.var.evaluate()):
-        # if self.index >= len(self.var.evaluate()):
             raise SemanticError('SEMANTIC ERROR')
-        # print(f"self.var: {self.var.evaluate()}")
-        # print(f"self.index:{self.index.evaluate()}")
         return self.var.evaluate()[self.index.evaluate()]
-        # return self.var.evaluate()[self.index]
 
 class AssignmentNode(Node):
     def __init__(self, var, val):
@@ -275,33 +422,49 @@ class VariableNode(Node):
 
 class BasicLexer(Lexer):
     tokens = { VARIABLE, NUMBER, STRING, BOOLEAN,
-                ANDALSO, NOT, PRINT, ARRAY, ASSIGN, EQ, SEMICOLON,
-                BLOCK, IF, ELSE, WHILE,
-                MOD, AND}
+                ANDALSO, PRINT, ASSIGN, EQ, SEMICOLON,
+                IF, ELSE, WHILE,
+                MOD, NOT, IN, ORELSE, DIV, CONS,
+                EXPONENTIAL, NE, LE, LT, GE, GT}
                 # LBRAC, RBRAC}
     ignore = '\t '
-    literals = { '=', '+', '-', '/', '<', '>',
-                '*', '(', ')', ',', ';', '[', ']', '{', '}'}
+    literals = { '=', '+', '-', '/', '<', '>', 
+                '*', '(', ')', ',', '[', ']', '{', '}', '#'}
 
     EQ      = r'=='
     ASSIGN  = r'='
+    NE      = r'<>'
+    LE      = r'<='
+    LT      = r'<'
+    GE      = r'>='
+    GT      = r'>'
+    EXPONENTIAL = r'\*\*'
     ANDALSO = r'andalso'
     NOT     = r'not'
     PRINT   = r'print'
     IF      = r'if'
+    
+    ORELSE  = r'orelse'
+    DIV     = r'div'
     ELSE    = r'else'
     WHILE   = r'while'
     MOD     = r'mod'
+    IN      = r'in'
     SEMICOLON = r';'
-    # LBRAC   = r'\['
-    # RBRAC   = r'\]'
+    CONS    = r'::'
 
     BOOLEAN = r'(True|False)'
-    VARIABLE = r'[a-zA-Z_][a-zA-Z0-9_]*'
     STRING = r"['\"](.*?)['\"]"
-    NUMBER = r'\d+'
+    # NUMBER = r'\d*(\d\.|\.\d)\d*(e-?\d+)? | \d+ (e-?\d+)?'
+    NUMBER  = r'[\d.]+(?:e-?\d+)?'
     
-    # VARIABLE['print'] = PRINT
+    # @_(r'[a-zA-Z_][a-zA-Z0-9_]*')
+    # def VARIABLE(self, t):
+    #     t.value = str(t.value)
+    #     return t
+
+    VARIABLE = r'[a-zA-Z_][a-zA-Z0-9_]*'
+
 
     @_(r'\n+')
     def newline(self, t):
@@ -310,10 +473,16 @@ class BasicLexer(Lexer):
 class BasicParser(Parser):
     tokens = BasicLexer.tokens
     precedence = (
-        ('left', 'AND'),
-        ('left', 'EQ'),
-        ('left', '+', '-'),
-        ('left', 'MOD'),
+        ('left', 'ORELSE'),
+       ('left', 'ANDALSO'),
+       ('left', 'NOT'),
+       ('left', 'LT', 'GT', 'LE', 'GE', 'NE', 'EQ'),
+       ('right', 'CONS'),
+       ('left', 'IN'),
+       ('left', '+', '-'),
+       ('left', '*', '/', 'DIV', 'MOD'), 
+       ('right', 'EXPONENTIAL'),
+       ('right', 'UMINUS'),
     )
   
     def __init__(self):
@@ -335,12 +504,10 @@ class BasicParser(Parser):
     def statement(self, p):
         return p.var_assign
   
-    # @_('VARIABLE ASSIGN expr SEMICOLON')
     @_('var ASSIGN expr SEMICOLON')
     def var_assign(self, p):
         return AssignmentNode(p.var, p.expr)
     
-    # @_('VARIABLE "[" expr "]" ASSIGN expr SEMICOLON')
     @_('var "[" expr "]" ASSIGN expr SEMICOLON')
     def var_assign(self, p):
         return AssignmentNode(VariableIndexNode(p.var, p.expr0), p.expr1)
@@ -352,6 +519,10 @@ class BasicParser(Parser):
     @_('"{" stmt_list "}"')
     def block(self, p):
         return BlockNode(p.stmt_list)
+
+    @_('"{" "}"')
+    def block(self, p):
+        return BlockNode(None)
 
     @_('statement stmt_list')
     def stmt_list(self, p):
@@ -390,11 +561,6 @@ class BasicParser(Parser):
     def statement(self, p):
         return (p.expr)
 
-    # @_('var_index')
-    # def expr(self, p):
-    #     return p.var_index
-
-
     @_('array')
     def expr(self, p):
         return (p.array)
@@ -403,6 +569,10 @@ class BasicParser(Parser):
     def array(self, p):
         return ListNode(p.expr_list)
 
+    @_('"[" "]"')
+    def array(self, p):
+        return ListNode([])
+
     @_('expr')
     def expr_list(self, p):
         return [p.expr]
@@ -410,51 +580,86 @@ class BasicParser(Parser):
     @_('expr "," expr_list')
     def expr_list(self, p):
         return [p.expr] + p.expr_list
-
-    # @_('index')
-    # def expr(self, p):
-    #     return p.index
-
-    # @_('expr "[" expr "]"')
-    # def index (self, p):
-    #     print(f"index: p.expr0: {p.expr0}")
-    #     print(f"index: p.expr1: {p.expr1}")
-    #     return p.expr1
     
     @_('array "[" expr "]"')
     def array(self, p):
         return IndexNode(p.array, p.expr)
 
     @_('expr "[" expr "]"')
-    # def var_index(self,p):
     def expr(self, p):
-        # print(f"p.var:{p.var.evaluate()}")
-        # print(f"p.expr: {p.expr.evaluate()}")
         return VariableIndexNode(p.expr0, p.expr1)
+
+    @_('tuple')
+    def expr(self, p):
+        return p.tuple
+
+    @_('"(" csl ")"')
+    def tuple(self, p):
+        return TupleNode(p.csl)
+
+    @_('expr "," expr ","')
+    def csl(self, p):
+        return CSLNode(p.expr0, p.expr1)
+    
+    @_('csl expr ","')
+    def csl(self, p):
+        return CSLNode(p.csl, p.expr)
+
+    @_('"#" expr tuple')
+    def tuple(self,p):
+        return IndexTupleNode(p.tuple, p.expr)
 
 # =================================
 
     @_('expr "+" expr',
         'expr "-" expr',
+        'expr "*" expr',
+        'expr "/" expr',
+        'expr EXPONENTIAL expr',
         'expr "<" expr',
         'expr ">" expr',
+        'expr DIV expr',
         'expr MOD expr',
         'expr EQ expr',
-        'expr ANDALSO expr')
+        'expr NE expr',
+        'expr LT expr',
+        'expr LE expr',
+        'expr GT expr',
+        'expr GE expr',
+        'expr ANDALSO expr',
+        'expr ORELSE expr',
+        'expr IN expr',
+        'expr CONS expr')
     def expr(self, p):
         return BinOp(p[1], p.expr0, p.expr1)
+
+    @_('NOT expr')
+    def expr(self,p):
+        return OneOp(p[0], p.expr)
+
+    @_('"-" expr %prec UMINUS')
+    def expr(self, p):
+        return OneOp(p[0], p.expr)
     
-    # @_('"(" expr ")"')
-    # def expr(self, p):
-    #     return p.expr
+    @_('"(" expr ")"')
+    def expr(self, p):
+        return p.expr
 
     @_('NUMBER')
     def expr(self, p):
         return NumberNode(p.NUMBER)
 
+    @_('string')
+    def expr(self,p):
+        return p.string
+
     @_('STRING')
-    def expr(self, p):
+    def string(self, p):
         return StringNode(p.STRING)
+
+    @_('string "[" expr "]"')
+    def string(self, p):
+        return IndexNode(p.string, p.expr)
     
     @_('BOOLEAN')
     def expr(self, p):
@@ -468,30 +673,32 @@ class BasicParser(Parser):
     def var(self, p):
         return VariableNode(p.VARIABLE)
 
-if __name__ == '__main__':
-    lexer = BasicLexer()
-    parser = BasicParser()
-    env = {}
 
-    fd = open("tests/test1.txt", 'r')
-    code = ""
+lexer = BasicLexer()
+parser = BasicParser()
+fd = open(sys.argv[1], 'r')
+code = ""
 
-    for line in fd:
-        code += line.strip()
+for line in fd:
+    code += line.strip()
 
-    try:
-        ast = parser.parse(lexer.tokenize(code))
-        ast.evaluate()
-    except Exception as e:
-        print(str(e))
+try:
+    ast = parser.parse(lexer.tokenize(code))
+    ast.evaluate()
+except Exception as e:
+    print(str(e))
 
-    while True:          
-        try:
-            text = input('GFG Language > ')
-        except EOFError:
-            break
-        if text:
-            tree = parser.parse(lexer.tokenize(text))
-            # print(tree)
-            tree.evaluate()
-            # BasicExecute(tree, env)
+# if __name__ == '__main__':
+#     lexer = BasicLexer()
+#     parser = BasicParser()
+#     env = {}
+
+#     while True:          
+#         try:
+#             text = input('GFG Language > ')
+#         except EOFError:
+#             break
+#         if text:
+#             tree = parser.parse(lexer.tokenize(text))
+#             # print(tree)
+#             tree.evaluate()

@@ -1,0 +1,29 @@
+{
+	{
+
+	}
+	{
+	}
+	{
+		if(True){
+		}
+
+		if(True andalso False){
+		
+		} else {
+		}
+		
+		while(False){
+		
+		
+		
+		}
+		
+		print('You passed this test case for blocks with empty statement.');
+
+	}
+
+
+
+
+}
