@@ -222,6 +222,8 @@ variables = {}
 class VariableIndexNode(Node):
     def __init__(self, var, index):
         self.var = var
+        # print(f"var in variableIndexNode: {var.evaluate()}")
+        # print(f"index in variableIndexNode: {index.evaluate()}")
         self.index = index
         # self.value = value
     def evaluate(self):
@@ -231,10 +233,15 @@ class VariableIndexNode(Node):
         if not (isinstance(self.var.evaluate(), list) or isinstance(self.var.evaluate(), str)):
             raise SemanticError('SEMANTIC ERROR')
         if not isinstance(self.index.evaluate(), int):
+        # if not isinstance(self.index, int):
             raise SemanticError('SEMANTIC ERROR')
         if self.index.evaluate() >= len(self.var.evaluate()):
+        # if self.index >= len(self.var.evaluate()):
             raise SemanticError('SEMANTIC ERROR')
+        # print(f"self.var: {self.var.evaluate()}")
+        # print(f"self.index:{self.index.evaluate()}")
         return self.var.evaluate()[self.index.evaluate()]
+        # return self.var.evaluate()[self.index]
 
 class AssignmentNode(Node):
     def __init__(self, var, val):
@@ -387,10 +394,6 @@ class BasicParser(Parser):
     # def expr(self, p):
     #     return p.var_index
 
-    @_('var "[" expr "]"')
-    # def var_index(self,p):
-    def expr(self, p):
-        return VariableIndexNode(p.var, p.expr)
 
     @_('array')
     def expr(self, p):
@@ -407,10 +410,27 @@ class BasicParser(Parser):
     @_('expr "," expr_list')
     def expr_list(self, p):
         return [p.expr] + p.expr_list
+
+    # @_('index')
+    # def expr(self, p):
+    #     return p.index
+
+    # @_('expr "[" expr "]"')
+    # def index (self, p):
+    #     print(f"index: p.expr0: {p.expr0}")
+    #     print(f"index: p.expr1: {p.expr1}")
+    #     return p.expr1
     
     @_('array "[" expr "]"')
     def array(self, p):
         return IndexNode(p.array, p.expr)
+
+    @_('expr "[" expr "]"')
+    # def var_index(self,p):
+    def expr(self, p):
+        # print(f"p.var:{p.var.evaluate()}")
+        # print(f"p.expr: {p.expr.evaluate()}")
+        return VariableIndexNode(p.expr0, p.expr1)
 
 # =================================
 
