@@ -231,7 +231,10 @@ class BasicParser(Parser):
     @_('VARIABLE ASSIGN expr')
     def var_assign(self, p):
         return AssignmentNode(p.VARIABLE, p.expr)
-        # return ('var_assign', p.VARIABLE, p.expr)
+    
+    @_('VARIABLE "[" expr "]" ASSIGN expr')
+    def var_assign(self, p):
+        return AssignmentNode(VariableIndexNode(VariableNode(p.VARIABLE), p.expr0), p.expr1)
 # =================================
 
     @_('expr')
