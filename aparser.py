@@ -104,7 +104,6 @@ class BinOp(Expr):
                 return val1 + val2
             else:
                 raise SemanticError('SEMANTIC ERROR')
-           # print('type1:' + str(type(self.v1)) + 'type2:' + str(type(self.v2)))
         elif (self.op == '-'):
             val1 = self.left.evaluate()
             val2 = self.right.evaluate()
@@ -118,6 +117,8 @@ class BinOp(Expr):
                 return val1 - val2
             else:
                 raise SemanticError()
+        elif (self.op == 'mod'):
+            return self.left.evaluate() % self.right.evaluate()
         elif (self.op == '<'):
             val1 = self.left.evaluate()
             val2 = self.right.evaluate()
@@ -131,6 +132,43 @@ class BinOp(Expr):
                 return val1 < val2
             elif isinstance(val1, float) and isinstance(val2, float):
                 return val1 < val2
+            else:
+                raise SemanticError('SEMANTIC ERROR')
+        elif (self.op == '>'):
+            val1 = self.left.evaluate()
+            val2 = self.right.evaluate()
+            if isinstance(val1, str) and isinstance(val2, str):
+                return val1 > val2
+            elif isinstance(val1, int) and isinstance(val2, int):
+                return val1 > val2
+            elif isinstance(val1, float) and isinstance(val2, int):
+                return val1 > val2
+            elif isinstance(val1, int) and isinstance(val2, float):
+                return val1 > val2
+            elif isinstance(val1, float) and isinstance(val2, float):
+                return val1 > val2
+            else:
+                raise SemanticError('SEMANTIC ERROR')
+        elif (self.op == '=='):
+            val1 = self.left.evaluate()
+            val2 = self.right.evaluate()
+            if isinstance(val1, str) and isinstance(val2, str):
+                return val1 == val2
+            elif isinstance(val1, int) and isinstance(val2, int):
+                return val1 == val2
+            elif isinstance(val1, float) and isinstance(val2, int):
+                return val1 == val2
+            elif isinstance(val1, int) and isinstance(val2, float):
+                return val1 == val2
+            elif isinstance(val1, float) and isinstance(val2, float):
+                return val1 == val2
+            else:
+                raise SemanticError('SEMANTIC ERROR')
+        elif (self.op == 'andalso'):
+            val1 = self.left.evaluate()
+            val2 = self.right.evaluate()
+            if isinstance(val1, bool) and isinstance(val2, bool):
+                return val1 and val2
             else:
                 raise SemanticError('SEMANTIC ERROR')
 
@@ -211,8 +249,8 @@ class AssignmentNode(Node):
             else:
                 raise SemanticError('SEMANTIC ERROR')
         else:
-            # variables[self.var.name] = self.val.evaluate()
-            variables[self.var] = self.val.evaluate()
+            variables[self.var.name] = self.val.evaluate()
+            # variables[self.var] = self.val.evaluate()
 
 class VariableNode(Node):
     def __init__(self, var):
@@ -231,10 +269,11 @@ class VariableNode(Node):
 class BasicLexer(Lexer):
     tokens = { VARIABLE, NUMBER, STRING, BOOLEAN,
                 ANDALSO, NOT, PRINT, ARRAY, ASSIGN, EQ, SEMICOLON,
-                BLOCK, IF, ELSE, WHILE}
+                BLOCK, IF, ELSE, WHILE,
+                MOD, AND}
                 # LBRAC, RBRAC}
     ignore = '\t '
-    literals = { '=', '+', '-', '/', '<',
+    literals = { '=', '+', '-', '/', '<', '>',
                 '*', '(', ')', ',', ';', '[', ']', '{', '}'}
 
     EQ      = r'=='
@@ -245,6 +284,7 @@ class BasicLexer(Lexer):
     IF      = r'if'
     ELSE    = r'else'
     WHILE   = r'while'
+    MOD     = r'mod'
     SEMICOLON = r';'
     # LBRAC   = r'\['
     # RBRAC   = r'\]'
@@ -262,9 +302,12 @@ class BasicLexer(Lexer):
 
 class BasicParser(Parser):
     tokens = BasicLexer.tokens
-    # precedence = (
-    #     ('left', '+', '-'),
-    # )
+    precedence = (
+        ('left', 'AND'),
+        ('left', 'EQ'),
+        ('left', '+', '-'),
+        ('left', 'MOD'),
+    )
   
     def __init__(self):
         self.env = { }
@@ -285,13 +328,15 @@ class BasicParser(Parser):
     def statement(self, p):
         return p.var_assign
   
-    @_('VARIABLE ASSIGN expr SEMICOLON')
+    # @_('VARIABLE ASSIGN expr SEMICOLON')
+    @_('var ASSIGN expr SEMICOLON')
     def var_assign(self, p):
-        return AssignmentNode(p.VARIABLE, p.expr)
+        return AssignmentNode(p.var, p.expr)
     
-    @_('VARIABLE "[" expr "]" ASSIGN expr SEMICOLON')
+    # @_('VARIABLE "[" expr "]" ASSIGN expr SEMICOLON')
+    @_('var "[" expr "]" ASSIGN expr SEMICOLON')
     def var_assign(self, p):
-        return AssignmentNode(VariableIndexNode(VariableNode(p.VARIABLE), p.expr0), p.expr1)
+        return AssignmentNode(VariableIndexNode(p.var, p.expr0), p.expr1)
 
     @_('block')
     def statement(self, p):
@@ -338,13 +383,14 @@ class BasicParser(Parser):
     def statement(self, p):
         return (p.expr)
 
-    @_('var_index')
-    def expr(self, p):
-        return p.var_index
+    # @_('var_index')
+    # def expr(self, p):
+    #     return p.var_index
 
-    @_('VARIABLE "[" expr "]"')
-    def var_index(self,p):
-        return VariableIndexNode(VariableNode(p.VARIABLE), p.expr)
+    @_('var "[" expr "]"')
+    # def var_index(self,p):
+    def expr(self, p):
+        return VariableIndexNode(p.var, p.expr)
 
     @_('array')
     def expr(self, p):
@@ -370,7 +416,11 @@ class BasicParser(Parser):
 
     @_('expr "+" expr',
         'expr "-" expr',
-        'expr "<" expr')
+        'expr "<" expr',
+        'expr ">" expr',
+        'expr MOD expr',
+        'expr EQ expr',
+        'expr ANDALSO expr')
     def expr(self, p):
         return BinOp(p[1], p.expr0, p.expr1)
     
@@ -390,84 +440,31 @@ class BasicParser(Parser):
     def expr(self, p):
         return BooleanNode(p.BOOLEAN)
 
-    @_('VARIABLE')
+    @_('var')
     def expr(self, p):
-        return VariableNode(p.VARIABLE)
-   
-
-
-class BasicExecute:
-    
-    def __init__(self, tree, env):
-        self.env = env
-        result = self.walkTree(tree)
-        # if result is not None:
-        #     print(result)
-  
-    def walkTree(self, node):
-        node.evulate(0)
-        if isinstance(node, int):
-            return node
-        if isinstance(node, str):
-            return node
-  
-        if node is None:
-            return None
-  
-        if node[0] == 'program':
-            if node[1] == None:
-                self.walkTree(node[2])
-            else:
-                self.walkTree(node[1])
-                self.walkTree(node[2])
+        return p.var
         
-        if node[0] == 'num':
-            return node[1]
-        if node[0] == 'str':
-            return node[1]
-        if node[0] == 'bool':
-            return node[1]
-        if node[0] == 'arr':
-            temp = []
-            for e in node[1]:
-                temp.append(self.walkTree(e))
-            return temp
-
-        if node[0] == 'block':
-            for e in node[1]:
-                self.walkTree(e)
-  
-        if node[0] == 'add':
-            return self.walkTree(node[1]) + self.walkTree(node[2])
-        elif node[0] == 'sub':
-            return self.walkTree(node[1]) - self.walkTree(node[2])
-        elif node[0] == 'not':
-            return not(self.walkTree(node[1]))
-        elif node[0] == 'andalso':
-            return self.walkTree(node[1]) and self.walkTree(node[2])
-  
-        if node[0] == 'var_assign':
-            self.env[node[1]] = self.walkTree(node[2])
-            return node[1]
-        if node[0] == 'print':
-            print(self.walkTree(node[1]))
-            return
-        if node[0] == 'index':
-            array = self.walkTree(node[1])
-            index = self.walkTree(node[2])
-            return array[index]
-
-        if node[0] == 'var':
-            try:
-                return self.env[node[1]]
-            except LookupError:
-                print("Undefined variable '"+node[1]+"' found!")
-                return 0
+    @_('VARIABLE')
+    def var(self, p):
+        return VariableNode(p.VARIABLE)
 
 if __name__ == '__main__':
     lexer = BasicLexer()
     parser = BasicParser()
     env = {}
+
+    fd = open("tests/test1.txt", 'r')
+    code = ""
+
+    for line in fd:
+        code += line.strip()
+
+    try:
+        ast = parser.parse(lexer.tokenize(code))
+        ast.evaluate()
+    except Exception as e:
+        print(str(e))
+
     while True:          
         try:
             text = input('GFG Language > ')
