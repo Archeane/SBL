@@ -118,6 +118,21 @@ class BinOp(Expr):
                 return val1 - val2
             else:
                 raise SemanticError()
+        elif (self.op == '<'):
+            val1 = self.left.evaluate()
+            val2 = self.right.evaluate()
+            if isinstance(val1, str) and isinstance(val2, str):
+                return val1 < val2
+            elif isinstance(val1, int) and isinstance(val2, int):
+                return val1 < val2
+            elif isinstance(val1, float) and isinstance(val2, int):
+                return val1 < val2
+            elif isinstance(val1, int) and isinstance(val2, float):
+                return val1 < val2
+            elif isinstance(val1, float) and isinstance(val2, float):
+                return val1 < val2
+            else:
+                raise SemanticError('SEMANTIC ERROR')
 
 class PrintNode(Node):
     def __init__(self, v):
@@ -136,6 +151,33 @@ class BlockNode(Node):
         for statement in self.statementList:
             statement.evaluate()
 
+class IfNode(Node):
+    def __init__(self, condition, block):
+        self.condition = condition
+        self.block = block
+    def evaluate(self):
+        if self.condition.evaluate():
+            self.block.evaluate()
+
+class IfElseNode(Node):
+    def __init__(self, condition, ifblock, elseblock):
+        self.condition = condition
+        self.ifblock = ifblock
+        self.elseblock = elseblock
+    def evaluate(self):
+        if self.condition.evaluate():
+            self.ifblock.evaluate()
+        else:
+            self.elseblock.evaluate()
+
+class WhileNode(Node):
+    def __init__(self, condition, block):
+        self.condition = condition
+        self.block = block
+
+    def evaluate(self):
+        while(self.condition.evaluate()):
+            self.block.evaluate()
 
 variables = {}
 
@@ -189,10 +231,10 @@ class VariableNode(Node):
 class BasicLexer(Lexer):
     tokens = { VARIABLE, NUMBER, STRING, BOOLEAN,
                 ANDALSO, NOT, PRINT, ARRAY, ASSIGN, EQ, SEMICOLON,
-                BLOCK}
+                BLOCK, IF, ELSE, WHILE}
                 # LBRAC, RBRAC}
     ignore = '\t '
-    literals = { '=', '+', '-', '/', 
+    literals = { '=', '+', '-', '/', '<',
                 '*', '(', ')', ',', ';', '[', ']', '{', '}'}
 
     EQ      = r'=='
@@ -200,6 +242,9 @@ class BasicLexer(Lexer):
     ANDALSO = r'andalso'
     NOT     = r'not'
     PRINT   = r'print'
+    IF      = r'if'
+    ELSE    = r'else'
+    WHILE   = r'while'
     SEMICOLON = r';'
     # LBRAC   = r'\['
     # RBRAC   = r'\]'
@@ -263,35 +308,36 @@ class BasicParser(Parser):
     @_('statement')
     def stmt_list(self, p):
         return [p.statement]
+
+    @_('if_stmt')
+    def statement(self, p):
+        return p.if_stmt
+
+    @_('IF "(" expr ")" block')
+    def if_stmt(self, p):
+        return IfNode(p.expr, p.block)
+
+    @_('while_stmt')
+    def statement(self, p):
+        return p.while_stmt
+    
+    @_('WHILE "(" expr ")" block')
+    def while_stmt(self, p):
+        return WhileNode(p.expr, p.block)
+
+    @_('ifelse_stmt')
+    def statement(self, p):
+        return p.ifelse_stmt
+
+    @_('IF "(" expr ")" block ELSE block')
+    def ifelse_stmt(self, p):
+        return IfElseNode(p.expr, p.block0, p.block1)
 # =================================
 
     @_('expr')
     def statement(self, p):
         return (p.expr)
 
-    # @_('"[" expr "," expr_list"]"')
-    # def expr(self, p):
-    #     return ListNode(p.expr) + p.expr_list
-
-    # @_('"[" expr "]"')
-    # def expr_list(self, p):
-    #     return ListNode(p.expr)
-    
-    # @_('LBRAC expr_list RBRAC')
-    # def expr(self, p):
-    #     return ListNode(p.expr_list)
-    
-    # @_('expr "," expr_list')
-    # def expr_list(self, p):
-    #     return [p.expr] + p.expr_list
-
-    # @_('LBRAC RBRAC')
-    # def expr_list(self, p):
-    #     return [p.expr]
-
-    # @_('expr_list LBRAC expr RBRAC')
-    # def expr_list_index(self, p):
-    #     return IndexNode(p.expr0, p.expr1)
     @_('var_index')
     def expr(self, p):
         return p.var_index
@@ -323,7 +369,8 @@ class BasicParser(Parser):
 # =================================
 
     @_('expr "+" expr',
-        'expr "-" expr')
+        'expr "-" expr',
+        'expr "<" expr')
     def expr(self, p):
         return BinOp(p[1], p.expr0, p.expr1)
     
