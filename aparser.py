@@ -126,6 +126,17 @@ class PrintNode(Node):
     def evaluate(self):
         print(self.value.evaluate())
 
+class BlockNode(Node):
+    def __init__(self,sl):
+        self.statementList = sl
+
+    def evaluate(self):
+        if self.statementList is None:
+            return
+        for statement in self.statementList:
+            statement.evaluate()
+
+
 variables = {}
 
 class VariableIndexNode(Node):
@@ -177,7 +188,7 @@ class VariableNode(Node):
 
 class BasicLexer(Lexer):
     tokens = { VARIABLE, NUMBER, STRING, BOOLEAN,
-                ANDALSO, NOT, PRINT, ARRAY, ASSIGN, EQ,
+                ANDALSO, NOT, PRINT, ARRAY, ASSIGN, EQ, SEMICOLON,
                 BLOCK}
                 # LBRAC, RBRAC}
     ignore = '\t '
@@ -189,6 +200,7 @@ class BasicLexer(Lexer):
     ANDALSO = r'andalso'
     NOT     = r'not'
     PRINT   = r'print'
+    SEMICOLON = r';'
     # LBRAC   = r'\['
     # RBRAC   = r'\]'
 
@@ -220,7 +232,7 @@ class BasicParser(Parser):
     def statement(self, p):
         return p.print_stmt
     
-    @_('PRINT "(" expr ")"')
+    @_('PRINT "(" expr ")" SEMICOLON')
     def print_stmt(self, p):
         return PrintNode(p.expr)
   
@@ -228,13 +240,29 @@ class BasicParser(Parser):
     def statement(self, p):
         return p.var_assign
   
-    @_('VARIABLE ASSIGN expr')
+    @_('VARIABLE ASSIGN expr SEMICOLON')
     def var_assign(self, p):
         return AssignmentNode(p.VARIABLE, p.expr)
     
-    @_('VARIABLE "[" expr "]" ASSIGN expr')
+    @_('VARIABLE "[" expr "]" ASSIGN expr SEMICOLON')
     def var_assign(self, p):
         return AssignmentNode(VariableIndexNode(VariableNode(p.VARIABLE), p.expr0), p.expr1)
+
+    @_('block')
+    def statement(self, p):
+        return p.block
+
+    @_('"{" stmt_list "}"')
+    def block(self, p):
+        return BlockNode(p.stmt_list)
+
+    @_('statement stmt_list')
+    def stmt_list(self, p):
+        return [p.statement] + p.stmt_list 
+    
+    @_('statement')
+    def stmt_list(self, p):
+        return [p.statement]
 # =================================
 
     @_('expr')
@@ -299,9 +327,9 @@ class BasicParser(Parser):
     def expr(self, p):
         return BinOp(p[1], p.expr0, p.expr1)
     
-    @_('"(" expr ")"')
-    def expr(self, p):
-        return p.expr
+    # @_('"(" expr ")"')
+    # def expr(self, p):
+    #     return p.expr
 
     @_('NUMBER')
     def expr(self, p):
