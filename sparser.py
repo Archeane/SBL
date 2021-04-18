@@ -3,13 +3,17 @@ from sly import Parser
 
 class BasicLexer(Lexer):
     tokens = { NAME, NUMBER, STRING, BOOLEAN,
-                ANDALSO, NOT, PRINT, ARRAY}
+                ANDALSO, NOT, PRINT, ARRAY, ASSIGN, EQ,
+                BLOCK}
     ignore = '\t '
     literals = { '=', '+', '-', '/', 
-                '*', '(', ')', ',', ';', '[', ']'}
+                '*', '(', ')', ',', ';', '[', ']', '{', '}'}
 
+    EQ      = r'=='
+    ASSIGN  = r'='
     ANDALSO = r'andalso'
     NOT     = r'not'
+
 
     @_(r'(True|False)')
     def BOOLEAN(self, t):
@@ -22,7 +26,8 @@ class BasicLexer(Lexer):
     # @_(r'\[[^\]]*\]')
     # def ARRAY(self, t):
     #     t.value = eval(str(t.value))
-    #     return t
+    #     return 
+    
 
     NAME = r'[a-zA-Z_][a-zA-Z0-9_]*'
     @_(r"['\"](.*?)['\"]")
@@ -62,24 +67,24 @@ class BasicParser(Parser):
     @_('PRINT "(" statement ")"')
     def statement(self, p):
         return ('print', p.statement)
-  
+
     @_('var_assign')
     def statement(self, p):
         return p.var_assign
   
-    @_('NAME "=" expr')
+    @_('NAME ASSIGN expr')
     def var_assign(self, p):
         return ('var_assign', p.NAME, p.expr)
   
-    @_('NAME "=" str')
+    @_('NAME ASSIGN str')
     def var_assign(self, p):
         return ('var_assign', p.NAME, p.str)
     
-    @_('NAME "=" bool')
+    @_('NAME ASSIGN bool')
     def var_assign(self, p):
         return ('var_assign', p.NAME, p.bool)
 
-    @_('NAME "=" array')
+    @_('NAME ASSIGN array')
     def var_assign(self, p):
         return ('var_assign', p.NAME, p.array)
 
@@ -100,10 +105,6 @@ class BasicParser(Parser):
     @_('array')
     def statement(self, p):
         return (p.array)
-    
-    # @_('name')
-    # def statement(self, p):
-    #     return (p.name)
 
 # =======================
 
@@ -147,11 +148,12 @@ class BasicParser(Parser):
     def elements(self, p):
         return [p.statement] + p.elements
     
-    
     @_('NAME')
     def array(self, p):
         return ('var', p.NAME)
 
+
+# ==================== ops =================
 
     @_('statement "+" statement')
     def statement(self, p):
@@ -234,6 +236,10 @@ class BasicExecute:
             for e in node[1]:
                 temp.append(self.walkTree(e))
             return temp
+
+        if node[0] == 'block':
+            for e in node[1]:
+                self.walkTree(e)
   
         if node[0] == 'add':
             return self.walkTree(node[1]) + self.walkTree(node[2])
@@ -264,7 +270,20 @@ class BasicExecute:
 
 if __name__ == '__main__':
     lexer = BasicLexer()
+    data = '''
+{
+    a = 1;
+    print(a)
+}
+'''
+    for tok in lexer.tokenize(data):
+        print(tok)
+
     parser = BasicParser()
+
+    temp = parser.parse(lexer.tokenize(data))
+    print(temp)
+
     env = {}
       
     while True:          
